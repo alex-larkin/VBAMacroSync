@@ -10,9 +10,24 @@ Attribute VB_Name = "VBAMacroSync"
 Private Declare PtrSafe Sub Sleep Lib "kernel32" (ByVal dwMilliseconds As Long)
 
 ' ========================================================================
-' CONFIGURATION - Change this path to your sync folder
+' CONFIGURATION - Path is read from environment variable
 ' ========================================================================
-Const SYNC_FOLDER_PATH As String = "C:\Users\larka\Documents\SIL\Software\Macros\VBAMacroSync\"
+Private Function GetSyncFolderPath() As String
+    Dim envPath As String
+    envPath = Environ("VBA_MACRO_SYNC_PATH")
+
+    If envPath <> "" Then
+        GetSyncFolderPath = envPath
+    Else
+        MsgBox "ERROR: Environment variable 'VBA_MACRO_SYNC_PATH' is not set." & vbCrLf & vbCrLf & _
+               "Please set this variable to your sync folder path." & vbCrLf & _
+               "See README.md for setup instructions.", vbCritical, "VBA Macro Sync"
+        GetSyncFolderPath = ""
+    End If
+End Function
+
+' Legacy constant for reference (not used)
+' Const SYNC_FOLDER_PATH As String = "C:\Users\YourUsername\Your\Path\Here\"
 ' Don't use a folder that autosyncs with Dropbox, OneDrive, or the like (recommended).
 ' Make sure the path ends with a backslash (\)
 
@@ -31,7 +46,7 @@ Sub AutoExec()
 
     ' Log the sync operation
     Debug.Print "=== Word Startup: Importing macros from folder ==="
-    Debug.Print "Sync Folder Path: " & SYNC_FOLDER_PATH
+    Debug.Print "Sync Folder Path: " & GetSyncFolderPath()
 
     ' Import any new or modified macros from the sync folder
     Debug.Print "Calling ImportMacrosFromFolder..."
@@ -88,19 +103,23 @@ Sub ExportMacrosToFolder()
     Dim exportCount As Integer
     Dim fileExt As String
     Dim totalComponents As Integer
+    Dim syncPath As String
 
-    Debug.Print "Checking sync folder: " & SYNC_FOLDER_PATH
+    syncPath = GetSyncFolderPath()
+    If syncPath = "" Then Exit Sub ' Exit if environment variable not set
+
+    Debug.Print "Checking sync folder: " & syncPath
 
     ' Make sure the sync folder exists
-    If Dir(SYNC_FOLDER_PATH, vbDirectory) = "" Then
+    If Dir(syncPath, vbDirectory) = "" Then
         Debug.Print "Sync folder does not exist, attempting to create..."
-        MkDir SYNC_FOLDER_PATH
+        MkDir syncPath
         If Err.Number <> 0 Then
             Debug.Print "ERROR creating folder: " & Err.Number & " - " & Err.Description
             Err.Clear
             Exit Sub
         End If
-        Debug.Print "Created sync folder: " & SYNC_FOLDER_PATH
+        Debug.Print "Created sync folder: " & syncPath
     Else
         Debug.Print "Sync folder exists"
     End If
@@ -139,7 +158,7 @@ Sub ExportMacrosToFolder()
 
         ' Only export if we have a valid file extension
         If fileExt <> "" Then
-            exportPath = SYNC_FOLDER_PATH & vbComp.Name & fileExt
+            exportPath = syncPath & vbComp.Name & fileExt
             Debug.Print "  -> Exporting to: " & exportPath
 
             ' Export the component to a file
@@ -176,12 +195,16 @@ Sub ImportMacrosFromFolder()
     Dim basFileCount As Integer
     Dim clsFileCount As Integer
     Dim frmFileCount As Integer
+    Dim syncPath As String
 
-    Debug.Print "Checking sync folder: " & SYNC_FOLDER_PATH
+    syncPath = GetSyncFolderPath()
+    If syncPath = "" Then Exit Sub ' Exit if environment variable not set
+
+    Debug.Print "Checking sync folder: " & syncPath
 
     ' Check if sync folder exists
-    If Dir(SYNC_FOLDER_PATH, vbDirectory) = "" Then
-        Debug.Print "ERROR: Sync folder does not exist: " & SYNC_FOLDER_PATH
+    If Dir(syncPath, vbDirectory) = "" Then
+        Debug.Print "ERROR: Sync folder does not exist: " & syncPath
         Exit Sub
     Else
         Debug.Print "Sync folder exists"
@@ -202,14 +225,14 @@ Sub ImportMacrosFromFolder()
 
     ' Process .bas files (standard modules)
     Debug.Print "Searching for .bas files..."
-    fileName = Dir(SYNC_FOLDER_PATH & "*.bas")
+    fileName = Dir(syncPath & "*.bas")
     If fileName = "" Then
         Debug.Print "No .bas files found in folder"
     End If
 
     Do While fileName <> ""
         basFileCount = basFileCount + 1
-        fullPath = SYNC_FOLDER_PATH & fileName
+        fullPath = syncPath & fileName
         moduleName = Left(fileName, Len(fileName) - 4) ' Remove .bas extension
 
         Debug.Print "Found .bas file #" & basFileCount & ": " & fileName
@@ -232,14 +255,14 @@ Sub ImportMacrosFromFolder()
 
     ' Process .cls files (class modules)
     Debug.Print "Searching for .cls files..."
-    fileName = Dir(SYNC_FOLDER_PATH & "*.cls")
+    fileName = Dir(syncPath & "*.cls")
     If fileName = "" Then
         Debug.Print "No .cls files found in folder"
     End If
 
     Do While fileName <> ""
         clsFileCount = clsFileCount + 1
-        fullPath = SYNC_FOLDER_PATH & fileName
+        fullPath = syncPath & fileName
         moduleName = Left(fileName, Len(fileName) - 4) ' Remove .cls extension
 
         Debug.Print "Found .cls file #" & clsFileCount & ": " & fileName
@@ -259,14 +282,14 @@ Sub ImportMacrosFromFolder()
 
     ' Process .frm files (UserForms)
     Debug.Print "Searching for .frm files..."
-    fileName = Dir(SYNC_FOLDER_PATH & "*.frm")
+    fileName = Dir(syncPath & "*.frm")
     If fileName = "" Then
         Debug.Print "No .frm files found in folder"
     End If
 
     Do While fileName <> ""
         frmFileCount = frmFileCount + 1
-        fullPath = SYNC_FOLDER_PATH & fileName
+        fullPath = syncPath & fileName
         moduleName = Left(fileName, Len(fileName) - 4) ' Remove .frm extension
 
         Debug.Print "Found .frm file #" & frmFileCount & ": " & fileName
@@ -319,7 +342,7 @@ Function ProcessImport(filePath As String, moduleName As String, fileExt As Stri
     If moduleExists Then
         Debug.Print "  -> Comparing with existing module..."
         ' Export current version to a temp file for comparison
-        tempExportPath = SYNC_FOLDER_PATH & "~temp_" & moduleName & fileExt
+        tempExportPath = GetSyncFolderPath() & "~temp_" & moduleName & fileExt
         Debug.Print "  -> Exporting current version to temp file: " & tempExportPath
 
         vbComp.Export tempExportPath

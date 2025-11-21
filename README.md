@@ -8,9 +8,17 @@ Git-aware two-way synchronization between Word Normal.dotm macros and a local fo
    - Word → File → Options → Trust Center → Trust Center Settings
    - Enable "Trust access to the VBA project object model"
 
-2. **Configure Sync Folder**:
-   - Edit `SYNC_FOLDER_PATH` constant in VBAMacroSync00.bas
-   - Default: `C:\Users\larka\Documents\SIL\Software\Macros\VBAMacroSync\`
+2. **Set Environment Variable** (one-time setup):
+   - Press `Windows + R` to open Run dialog
+   - Type `sysdm.cpl` and press Enter
+   - Click the **"Advanced"** tab
+   - Click **"Environment Variables"** button at the bottom
+   - Under "User variables" (top section), click **"New..."**
+   - Enter:
+     - **Variable name:** `VBA_MACRO_SYNC_PATH`
+     - **Variable value:** `C:\Your\Path\To\SyncFolder\` (use your actual path, ending with `\`)
+   - Click OK on all dialogs
+   - Restart any open applications for the change to take effect
 
 3. **Import into Normal.dotm**:
    - Open Word VBA Editor (Alt+F11)
@@ -83,7 +91,7 @@ View debug output in Immediate Window (Ctrl+G in VBA Editor).
 **Macros not importing on Word open:**
 - Check Immediate Window (Ctrl+G) for debug messages
 - Verify VBA project access is enabled
-- Confirm `SYNC_FOLDER_PATH` is correct
+- Confirm `VBA_MACRO_SYNC_PATH` environment variable is set correctly
 
 **Import failed after editing in VS Code:**
 - Verify `Attribute VB_Name` matches filename
@@ -97,10 +105,32 @@ View debug output in Immediate Window (Ctrl+G in VBA Editor).
 
 ## Configuration
 
-Edit in VBAMacroSync.bas:
+The sync folder path is configured via the `VBA_MACRO_SYNC_PATH` environment variable (see Quick Start, step 2).
 
-```vba
-Const SYNC_FOLDER_PATH As String = "C:\Your\Path\Here\"
-```
+**Each user sets their own local path** - the path is not stored in the code or Git repository. This keeps your personal folder structure private.
 
 **Recommendation:** Don't use auto-syncing cloud folders (Dropbox, OneDrive). Use Git for version control instead.
+
+## Syncing Multiple Templates
+
+If you have additional .dotm or .dot template files beyond Normal.dotm, you can sync each independently:
+
+1. **Copy VBAMacroSync.bas into each template** (via VBA Editor → File → Import)
+2. **Create a separate environment variable for each template**:
+   - Each template needs its own unique environment variable
+   - Follow the same steps as Quick Start (step 2) for each variable:
+     - Example variables:
+       - `VBA_MACRO_SYNC_PATH_NORMAL` → `C:\Your\Path\WordMacros\Normal\`
+       - `VBA_MACRO_SYNC_PATH_OTHER` → `C:\Your\Path\WordMacros\OtherTemplate\`
+3. **Modify the `GetSyncFolderPath()` function** in each template's copy of VBAMacroSync.bas to use the appropriate variable name:
+   ```vba
+   ' In Normal.dotm copy:
+   envPath = Environ("VBA_MACRO_SYNC_PATH_NORMAL")
+
+   ' In OtherTemplate.dotm copy:
+   envPath = Environ("VBA_MACRO_SYNC_PATH_OTHER")
+   ```
+4. **Each template syncs independently** - modules export to their own subdirectories
+5. **Note:** If you update VBAMacroSync.bas, you'll need to manually copy the updated version to each template.
+
+This approach keeps templates isolated and is ideal when you have a small number of template files (2-5) to manage.
